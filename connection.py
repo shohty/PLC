@@ -2,26 +2,7 @@ import socket
 
 IP = "192.168.0.2"
 PORT = 12289
-
-def tcp_conn(command):
-    """Send a TCP command to the specified IP and port, and return the response."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.settimeout(5.0)  # setting timeout
-        s.connect((IP, PORT))
-        print(f"✓ successfully connected to {IP}:{PORT}")
-        
-        s.sendall(command.encode())#convert string command to bytes
-        print(f"Sent : {command.encode()}")
-        
-        try:
-            response = s.recv(1024)
-            print(f"Response : {response.decode()}")
-            # print(f"Response : {response.hex()}")
-        except socket.timeout:
-            print("⚠️  No response (timeout)")
-            return None
-    return response
-class PLCConnection:# Modified the function above to class
+class PLC_Connection:# Modified the function above to class
     def __init__(self, ip="192.168.0.2", port=12289, timeout=5.0):
         self.ip = ip
         self.port = port
@@ -41,7 +22,7 @@ class PLCConnection:# Modified the function above to class
 
         response = self.socket.recv(1024)
         # print(f"Response : {response.decode(errors='ignore').strip()}")
-        # print(f"Response : {response.decode()}")
+        print(f"Response : {response}")
         return response
 
     def close(self):

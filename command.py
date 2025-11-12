@@ -7,7 +7,7 @@ def TrgtCount_Converter(value: int):
     print(f"swapped : {swapped}")
     return swapped #return as string
 
-class GetCommand:
+class PLC_GetCommand:
     """This is the class for Get Command.(GetPosi,GetTrgtPosi)"""
     def __init__(self):
     # prequuisite for "Get" command
@@ -30,14 +30,16 @@ class GetCommand:
         command = self.header + "," + axis_str + axis_tail + self.tail + "\r\n"
         print(f"{command}")
         return command
+    # def decode():
+    #     print(f"")
 
-class SetTrgtCommand:
+class PLC_SetTrgtCommand:
     def __init__(self):
         self.header = "01WWRD0" #for cmd str1
         self.tail = ",02," #for cmd str1
         self.axis_first_term = 2 #for cmd str1
         self.axis_tail = "35" #for cmd str1
-        self.memoryheader = "01BWRT021"
+        self.memoryheader = "01BWRI021"
         self.memorytail = "1,001,1"
     
     def build(self, axis: int, trgt: int):#cmd str1 setting the trgt axis position
@@ -50,24 +52,66 @@ class SetTrgtCommand:
         
         trgt = TrgtCount_Converter(trgt)
         command = self.header + axis_str + self.axis_tail +self.tail + trgt + "\r\n"
+        # print(f"{repr(command)}")
         print(f"{command}")
         return command
     
     def build2(self, axis: int):#cmd str2 setting the memory address for each axis
         if not (isinstance(axis, int) and 1 <= axis <= 4):
             raise ValueError("axis must be an integer in 1 to 4")
-        
         axis_tmp = axis - 1 #the first term number of axis part : an arithmetic sequence with a common difference of +3
-        axis_str = f"{axis_tmp:02d}"
+        axis_str = f"{axis_tmp:01d}"
         command = self.memoryheader + axis_str + self.memorytail + "\r\n"
-        print(f"{command}")
+        print(f"{repr(command)}")
         return command
     
+class PLC_Move():
+    '''This is the command for rotating the motor and '''
+    def __init__(self):
+        self.header = "01BWRI023"
+        self.tail = "1,001,"
+        self.ONOFF = {"ON" : "1", "OFF" : "0"}
+    def build(self, axis: int, rot: str, onoff: str):
+        if not (isinstance(axis, int) and 1 <= axis <= 4):
+            raise ValueError("axis must be an integer in 1 to 4")
+        if not (isinstance(rot, str)):
+            raise ValueError("rot must be 'CW' or 'CCW'.")
+        if (rot == "CW"):
+            axis_and_rot = 2 * (axis - 1)
+        elif (rot == "CCW"):
+            axis_and_rot = 2 * (axis - 1) + 1
+        else:
+            return False
+        axis_and_rot_str = f"{axis_and_rot:01d}"
+        command = self.header + axis_and_rot_str + self.tail + self.ONOFF[onoff] + "\r\n"
+        return command
+
+class PLC_RstCntFlg():
+    '''This is the command for killing the flag already turned on'''
+    def __init__(self):
+        self.header = "01BWRI026"
+        self.tail = "1,001,1"
+    def build(self, axis: int):
+        if not (isinstance(axis, int) and 1 <= axis <= 4):
+            raise ValueError("axis must be an integer in 1 to 4")
+        axis_tmp = axis - 1
+        axis_str = f"{axis_tmp:01d}"
+        command = self.header + self.axis_str + self.tail + "\r\n"
+        return command
+
+class PLC_Stop():
+    '''This is the command for terminating all motors'''
+    def __init__(self):
+        self.command = "01BWRI02401,001,1"
+    def build(self):
+        command = self.command 
+        return command          
+      
 def GetCommand_check():
     """"Unit test for GetCommand class."""
     getposi_command = ["01SWR002,0321,02\r\n", "01SWR002,0621,02\r\n", "01SWR002,0921,02\r\n", "01SWR002,1221,02\r\n"]
     gettrgtposi_command = ["01SWR002,0235,02\r\n", "01SWR002,0535,02\r\n", "01SWR002,0835,02\r\n", "01SWR002,1135,02\r\n"]
-    obj = GetCommand()
+    obj = PLC_GetCommand()
     for i in range(4):
         getposi = obj.build(i+1, "Posi")
         gettrgtposi = obj.build(i+1, "TrgtPosi")
@@ -78,7 +122,7 @@ def GetCommand_check():
 def SetTrgtCommand_check():
     """"Unit test for GetCommand class."""
     settrgt_command = ["01WWRD00235,02,01900000\r\n","01WWRD00535,02,01900000\r\n","01WWRD00835,02,01900000\r\n","01WWRD01135,02,01900000\r\n"] #trgtcount is 400
-    obj = SetTrgtCommand()
+    obj = PLC_SetTrgtCommand()
     for i in range(4):
         settrgt = obj.build(i+1, 400)
         assert settrgt == settrgt_command[i], f"× : Expected {settrgt_command[i]} but got {settrgt}"
