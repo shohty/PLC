@@ -1,12 +1,24 @@
 import socket
 
 def TrgtCount_Converter(value: int):
-    hex8 = f"{value & 0xFFFFFFFF:08X}"
-    swapped = hex8[4:] + hex8[:4]
-    print(f"hex8 : {hex8}")
-    print(f"swapped : {swapped}")
-    return swapped #return as string
+    hex = f"{value & 0xFFFFFFFF:08X}"
+    fixed_hex = hex[4:] + hex[:4]
+    print(f"hex : {hex}")
+    print(f"fixed hex : {fixed_hex}")
+    return fixed_hex #return as string
 
+def ToDecimal(response):#input the raw response, NOT decoded one
+        list = []#list to store the strings striped by 4 letters
+        response_decode = response.decode() #decoding from byte-style to string
+        response_strip = response.rstrip()#eliminating "\r\n"
+        '''Stripe by 4 letters'''
+        for i in range(0, len(response_strip), 4):
+            list.append(response_strip[i:i+4])
+            print(f"{i} striped : {response_strip[i:i+4]}")
+        #you have to switch the 4 letter 
+        outvalue_hex = list[2] + list[1]
+        value = int(outvalue_hex, 16)
+        return value
 class PLC_GetCommand:
     """This is the class for Get Command.(GetPosi,GetTrgtPosi)"""
     def __init__(self):
@@ -30,9 +42,7 @@ class PLC_GetCommand:
         command = self.header + "," + axis_str + axis_tail + self.tail + "\r\n"
         print(f"{command}")
         return command
-    # def decode():
-    #     print(f"")
-
+    
 class PLC_SetTrgtCommand:
     def __init__(self):
         self.header = "01WWRD0" #for cmd str1
@@ -104,7 +114,7 @@ class PLC_Stop():
     def __init__(self):
         self.command = "01BWRI02401,001,1"
     def build(self):
-        command = self.command 
+        command = self.command + "\r\n"
         return command          
       
 def GetCommand_check():
@@ -127,7 +137,3 @@ def SetTrgtCommand_check():
         settrgt = obj.build(i+1, 400)
         assert settrgt == settrgt_command[i], f"× : Expected {settrgt_command[i]} but got {settrgt}"
         print(f"✓ : axis {i+1} SetTrgtPosi command test passed.")
-    
-        
-if __name__ == "__main__":
-    GetCommand_check()

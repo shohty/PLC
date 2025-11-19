@@ -15,7 +15,7 @@ class PLC_Connection:# Modified the function above to class
         self.socket.connect((self.ip, self.port))
         print(f"✓ Connected to {self.ip}:{self.port}")
 
-    def send(self, command: str):
+    def query(self, command: str):
         """Send an ASCII command, return response as bytes"""
         self.socket.sendall(command.encode())
         print(f"Sent     : {command.encode()}")
