@@ -1,4 +1,9 @@
 import socket
+from connection import *
+
+conn = Connection()
+conn.connect()
+
 
 def TrgtCount_Converter(value: int):
     hex = f"{value & 0xFFFFFFFF:08X}"
@@ -43,6 +48,7 @@ class PLC_Commands:
         # Constants for Stop
         self.Stop_COMMAND = "01BWRI02401,001,1"
         
+    # ------------Command for GetPosi ot GetTrgtPosi
     def Get(self, axis: int, command_type: str):
         if not (isinstance(axis, int) and 1 <= axis <= 4):
             raise ValueError("axis must be an integer in 1 to 4")
@@ -55,9 +61,11 @@ class PLC_Commands:
         axis_str = f"{axis_tmp:02d}"
 
         command = self.GET_HEADER + "," + axis_str + axis_tail + self.GET_TAIL + "\r\n"
-        print(f"{command}")
+        conn.query(command)
+        print(f"Successfully send Get{command_type} command for axis {axis} : {command}")
         return command
     
+    # ------------Command for SetTrgtPosi
     def SetTrgt(self, axis: int, trgt: int):
         if not (isinstance(axis, int) and 1 <= axis <= 4):
             raise ValueError("axis must be an integer in 1 to 4")
@@ -69,7 +77,8 @@ class PLC_Commands:
         trgt = TrgtCount_Converter(trgt)
         command = self.SET_HEADER + axis_str + self.AXIS_TAIL +self.SET_TAIL + trgt + "\r\n"
         # print(f"{repr(command)}")
-        print(f"{command}")
+        conn.query(command)
+        print(f"Successfully send SetTrgt command1 for axis{axis} to set target to {trgt} : {command}")
         return command
     def SetTrgt2(self, axis: int):
         if not (isinstance(axis, int) and 1 <= axis <= 4):
@@ -77,7 +86,9 @@ class PLC_Commands:
         axis_tmp = axis - 1 #the first term number of axis part : an arithmetic sequence with a common difference of +3
         axis_str = f"{axis_tmp:01d}"
         command = self.MEMORYHEADER + axis_str + self.MEMORYTAIL + "\r\n"
-        print(f"{repr(command)}")
+        # print(f"{repr(command)}")
+        conn.query(command)
+        print(f"Successfully send SetTrgt command2 for axis{axis} : {command}")
         return command
 
     def Move(self, axis: int, rot: str, onoff: str):
@@ -93,6 +104,8 @@ class PLC_Commands:
             return False
         axis_and_rot_str = f"{axis_and_rot:01d}"
         command = self.HEADER + axis_and_rot_str + self.Move_TAIL + self.ONOFF[onoff] + "\r\n"
+        conn.query(command)
+        print(f"Successfully send Move command for axis{axis} to set the {rot} rotation to {onoff}  : {command}")
         return command
     
     def RstCntFlg(self, axis: int):
@@ -101,10 +114,14 @@ class PLC_Commands:
         axis_tmp = axis - 1
         axis_str = f"{axis_tmp:01d}"
         command = self.RstCntFlg_HEADER + self.axis_str + self.RstCntFlg_TAIL + "\r\n"
+        conn.query(command)
+        print(f"Successfully send Reset Couter Flag command for axis{axis} : {command}")
         return command
     
     def Stop(self):
         command = self.Stop_COMMAND + "\r\n"
+        conn.query(command)
+        print(f"Successfully send All Stop command : {command}")
         return command
         
         
