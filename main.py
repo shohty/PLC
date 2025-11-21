@@ -16,7 +16,7 @@ def GetTrgtPosi(axis):
 
 # def MoveToTrgt(trgt :int):
 if __name__ == "__main__":
-    conn = PLC_Connection()
+    conn = Connection()
     conn.connect()
     getobj = PLC_GetCommand()
     setobj = PLC_SetTrgtCommand()

@@ -2,7 +2,7 @@ import socket
 
 IP = "192.168.0.2"
 PORT = 12289
-class PLC_Connection:# Modified the function above to class
+class Connection:# Modified the function above to class
     def __init__(self, ip="192.168.0.2", port=12289, timeout=5.0):
         self.ip = ip
         self.port = port

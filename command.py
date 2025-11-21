@@ -1,4 +1,9 @@
 import socket
+from connection import *
+# make your PC IP address to 0.121
+conn = Connection()
+conn.connect()
+
 
 def TrgtCount_Converter(value: int):
     hex = f"{value & 0xFFFFFFFF:08X}"
@@ -17,71 +22,81 @@ def ToDecimal(response):#input the raw response, NOT decoded one
             print(f"{i} striped : {response_strip[i:i+4]}")
         #you have to switch the 4 letter 
         outvalue_hex = list[2] + list[1]
-        value = int(outvalue_hex, 16)
+        value = int(outvalue_hex, 16) # まずは普通にunsignedで入る         
+        if value & 0x80000000:          # 32bitの符号ビットを見る
+            value = value - 0x100000000   # 負数へ補正
         return value
-class PLC_GetCommand:
-    """This is the class for Get Command.(GetPosi,GetTrgtPosi)"""
+
+class PLC_Commands:
     def __init__(self):
-    # prequuisite for "Get" command
-        self.header = "01SWR002" #the overall header
-        self.tail = ",02" #the overall tail
-        self.axis_first_term = {"Posi" : 3, "TrgtPosi" : 2} #the first term number of axis part : an arithmetic sequence with a common difference of +3
-        self.axis_tail = {"Posi" : "21", "TrgtPosi" : "35"}
-    
-    def build(self, axis: int, command_type: str):
+        # Constants for Get command
+        self.GET_HEADER = "01SWR002"
+        self.GET_TAIL = ",02"
+        self.GET_AXIS_FIRST_TERM= {"Posi" : 3, "TrgtPosi" : 2}
+        self.GET_AXIS_TAIL = {"Posi" : "21", "TrgtPosi" : "35"}
+        # Constants for SetTrgt Command
+        self.SET_HEADER = "01WWRD0"  #for cmd str1
+        self.SET_TAIL =  ",02,"  #for cmd str1
+        self.SET_AXIS_FIRST_TERM = 2 #for cmd str1
+        self.AXIS_TAIL = "35" #for cmd str1
+        self.MEMORYHEADER = "01BWRI021" #for cmd str2
+        self.MEMORYTAIL = "1,001,1" #for cmd str2
+        # Constants for Move Command
+        self.Move_HEADER = "01BWRI023"
+        self.Move_TAIL = "1,001,"
+        self.ONOFF = {"ON" : "1", "OFF" : "0"}
+        # Constants for RstCntFlg
+        self.RstCntFlg_HEADER = "01BWRI026"
+        self.RstCntFlg_TAIL = "1,001,1"
+        # Constants for Stop
+        self.Stop_COMMAND = "01BWRI02401,001,1"
+        
+    # ------------Command for GetPosi ot GetTrgtPosi
+    def Get(self, axis: int, command_type: str):
         if not (isinstance(axis, int) and 1 <= axis <= 4):
             raise ValueError("axis must be an integer in 1 to 4")
         try:
-            axis_tail = self.axis_tail[command_type]
+            axis_tail = self.GET_AXIS_TAIL[command_type]
         except KeyError:
             raise ValueError("Invalid command type (use 'Posi' or 'TrgtPosi')")
-        axis_first_term = self.axis_first_term[command_type] #the number corresponding to axis 1 to 4
+        axis_first_term = self.GET_AXIS_FIRST_TERM[command_type] #the number corresponding to axis 1 to 4
         axis_tmp = axis_first_term + 3 * (axis - 1)
         axis_str = f"{axis_tmp:02d}"
 
-        command = self.header + "," + axis_str + axis_tail + self.tail + "\r\n"
-        print(f"{command}")
-        return command
+        command = self.GET_HEADER + "," + axis_str + axis_tail + self.GET_TAIL + "\r\n"
+        response = conn.query(command)
+        result = ToDecimal(response)
+        print(f"Successfully send Get{command_type} command for axis {axis} : {command}")
+        print(f"Current {command_type} = {response} -> {ToDecimal(response)}")
+        return result
     
-class PLC_SetTrgtCommand:
-    def __init__(self):
-        self.header = "01WWRD0" #for cmd str1
-        self.tail = ",02," #for cmd str1
-        self.axis_first_term = 2 #for cmd str1
-        self.axis_tail = "35" #for cmd str1
-        self.memoryheader = "01BWRI021"
-        self.memorytail = "1,001,1"
-    
-    def build(self, axis: int, trgt: int):#cmd str1 setting the trgt axis position
+    # ------------Command for SetTrgtPosi
+    def SetTrgt(self, axis: int, trgt: int):
         if not (isinstance(axis, int) and 1 <= axis <= 4):
             raise ValueError("axis must be an integer in 1 to 4")
         if not (isinstance(trgt, int)):
             raise ValueError("trgt must be an integer")
-        axis_tmp = self.axis_first_term + 3 * (axis - 1) #the first term number of axis part : an arithmetic sequence with a common difference of +3
+        axis_tmp = self.SET_AXIS_FIRST_TERM + 3 * (axis - 1) #the first term number of axis part : an arithmetic sequence with a common difference of +3
         axis_str = f"{axis_tmp:02d}"
         
         trgt = TrgtCount_Converter(trgt)
-        command = self.header + axis_str + self.axis_tail +self.tail + trgt + "\r\n"
+        command = self.SET_HEADER + axis_str + self.AXIS_TAIL +self.SET_TAIL + trgt + "\r\n"
         # print(f"{repr(command)}")
-        print(f"{command}")
+        conn.query(command)
+        print(f"Successfully send SetTrgt command1 for axis{axis} to set target to {trgt} : {command}")
         return command
-    
-    def build2(self, axis: int):#cmd str2 setting the memory address for each axis
+    def SetTrgt2(self, axis: int):
         if not (isinstance(axis, int) and 1 <= axis <= 4):
             raise ValueError("axis must be an integer in 1 to 4")
         axis_tmp = axis - 1 #the first term number of axis part : an arithmetic sequence with a common difference of +3
         axis_str = f"{axis_tmp:01d}"
-        command = self.memoryheader + axis_str + self.memorytail + "\r\n"
-        print(f"{repr(command)}")
+        command = self.MEMORYHEADER + axis_str + self.MEMORYTAIL + "\r\n"
+        # print(f"{repr(command)}")
+        conn.query(command)
+        print(f"Successfully send SetTrgt command2 for axis{axis} : {command}")
         return command
-    
-class PLC_Move():
-    '''This is the command for rotating the motor and '''
-    def __init__(self):
-        self.header = "01BWRI023"
-        self.tail = "1,001,"
-        self.ONOFF = {"ON" : "1", "OFF" : "0"}
-    def build(self, axis: int, rot: str, onoff: str):
+
+    def Move(self, axis: int, rot: str, onoff: str):
         if not (isinstance(axis, int) and 1 <= axis <= 4):
             raise ValueError("axis must be an integer in 1 to 4")
         if not (isinstance(rot, str)):
@@ -93,47 +108,63 @@ class PLC_Move():
         else:
             return False
         axis_and_rot_str = f"{axis_and_rot:01d}"
-        command = self.header + axis_and_rot_str + self.tail + self.ONOFF[onoff] + "\r\n"
+        command = self.Move_HEADER + axis_and_rot_str + self.Move_TAIL + self.ONOFF[onoff] + "\r\n"
+        conn.query(command)
+        print(f"Successfully send Move command for axis{axis} to set the {rot} rotation to {onoff}  : {command}")
         return command
-
-class PLC_RstCntFlg():
-    '''This is the command for killing the flag already turned on'''
-    def __init__(self):
-        self.header = "01BWRI026"
-        self.tail = "1,001,1"
-    def build(self, axis: int):
+    
+    def RstCntFlg(self, axis: int):
         if not (isinstance(axis, int) and 1 <= axis <= 4):
             raise ValueError("axis must be an integer in 1 to 4")
         axis_tmp = axis - 1
         axis_str = f"{axis_tmp:01d}"
-        command = self.header + self.axis_str + self.tail + "\r\n"
+        command = self.RstCntFlg_HEADER + axis_str + self.RstCntFlg_TAIL + "\r\n"
+        conn.query(command)
+        print(f"Successfully send Reset Couter Flag command for axis{axis} : {command}")
         return command
-
-class PLC_Stop():
-    '''This is the command for terminating all motors'''
-    def __init__(self):
-        self.command = "01BWRI02401,001,1"
-    def build(self):
-        command = self.command + "\r\n"
-        return command          
-      
-def GetCommand_check():
-    """"Unit test for GetCommand class."""
-    getposi_command = ["01SWR002,0321,02\r\n", "01SWR002,0621,02\r\n", "01SWR002,0921,02\r\n", "01SWR002,1221,02\r\n"]
-    gettrgtposi_command = ["01SWR002,0235,02\r\n", "01SWR002,0535,02\r\n", "01SWR002,0835,02\r\n", "01SWR002,1135,02\r\n"]
-    obj = PLC_GetCommand()
-    for i in range(4):
-        getposi = obj.build(i+1, "Posi")
-        gettrgtposi = obj.build(i+1, "TrgtPosi")
-        assert getposi == getposi_command[i], f"× : Expected '01SWR002,0321,02' but got {getposi}"
-        assert gettrgtposi == gettrgtposi_command[i], f"× : Expected '01SWR002,0321,02' but got {getposi}"
-        print(f"✓ : axis {i+1} GetPosi and GetTrgtPosi command test passed.")
+    
+    def Stop(self):
+        command = self.Stop_COMMAND + "\r\n"
+        conn.query(command)
+        print(f"Successfully send All Stop command : {command}")
+        return command
+    
+def Move_To_Trgt(axis:int, trgt:int):
+    command = PLC_Commands()
+    current = command.Get(axis, "Posi")
+    command.SetTrgt(axis, trgt)
+    command.SetTrgt2(axis)
+    if (command.Get(axis, "TrgtPosi") == trgt):
+        print(f"SetTrgt successful")
+    else:
+        raise ValueError("SetTrgt is not working")
+    
+    if(current > trgt):
+        command.Move(axis, "CW", "ON")
+    elif(current < trgt):
+        command.Move(axis, "CCW", "ON")
+    elif(current == trgt):
+        print(f"No need to move")
+    
+    return True
         
-def SetTrgtCommand_check():
-    """"Unit test for GetCommand class."""
-    settrgt_command = ["01WWRD00235,02,01900000\r\n","01WWRD00535,02,01900000\r\n","01WWRD00835,02,01900000\r\n","01WWRD01135,02,01900000\r\n"] #trgtcount is 400
-    obj = PLC_SetTrgtCommand()
-    for i in range(4):
-        settrgt = obj.build(i+1, 400)
-        assert settrgt == settrgt_command[i], f"× : Expected {settrgt_command[i]} but got {settrgt}"
-        print(f"✓ : axis {i+1} SetTrgtPosi command test passed.")
+    
+if __name__ == "__main__":
+    command = PLC_Commands()
+    test_trgt = 7777
+    command.SetTrgt(1,test_trgt)
+    command.SetTrgt2(1)
+    trgt = command.Get(1, "TrgtPosi")
+    if (trgt == test_trgt):
+        print("✔︎ Test1 : SetTrgt Successful")
+    else:
+        print("× Test1 : SetTrgt Failed")
+    
+     
+     
+     
+     
+        
+        
+        
+ 
